@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract } from "thirdweb";
+import { createThirdwebClient, getContract, sendTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
@@ -19,7 +19,6 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-// アドレスをすべて小文字に統一してチェックサム検証エラーを完全に回避
 const CONTRACT_ADDRESS = "0xd6b986cfeeb0861113c233e5eb17b62e4d7550fd";
 
 const contract = getContract({
@@ -41,6 +40,7 @@ app.post("/api/claim", async (req, res) => {
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
+    // mintTo トランザクションの作成
     const transaction = mintTo({
       contract,
       to: address.trim().toLowerCase(),
@@ -48,7 +48,12 @@ app.post("/api/claim", async (req, res) => {
       quantity: 1n,
     });
 
-    const receipt = await transaction.send({ account: adminAccount });
+    // thirdweb v5 の正解送信メソッド sendTransaction を実行
+    const receipt = await sendTransaction({
+      transaction,
+      account: adminAccount,
+    });
+
     return res.json({ success: true, message: "NFTの受け取りが完了しました！", receipt });
   } catch (error) {
     console.error("Mint Error:", error);
