@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createThirdwebClient, getContract } from "thirdweb";
+import { getAddress } from "thirdweb/utils";
 import { polygon } from "thirdweb/chains";
 import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
@@ -19,11 +20,14 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-// コントラクトアドレスを直接文字列で定義（環境変数のエラーを防止）
+// getAddress を使用してアドレスの形式・チェックサムを強制変換
+const rawAddress = "0xD6b986CFeEb0861113c233e5Eb17b62e4D7550FD".trim();
+const contractAddress = getAddress(rawAddress);
+
 const contract = getContract({
   client,
   chain: polygon,
-  address: "0xD6b986CFeEb0861113c233e5Eb17b62e4D7550FD",
+  address: contractAddress,
 });
 
 app.post("/api/claim", async (req, res) => {
@@ -34,6 +38,8 @@ app.post("/api/claim", async (req, res) => {
   }
 
   try {
+    const cleanUserAddress = getAddress(address.trim());
+
     const adminAccount = privateKeyToAccount({
       client,
       privateKey: process.env.ADMIN_PRIVATE_KEY,
@@ -41,7 +47,7 @@ app.post("/api/claim", async (req, res) => {
 
     const transaction = mintTo({
       contract,
-      to: address,
+      to: cleanUserAddress,
       tokenId: 0n,
       quantity: 1n,
     });
