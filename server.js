@@ -6,7 +6,6 @@ import { createThirdwebClient, getContract } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
-import { getAddress } from "ethers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,13 +19,13 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-// ethers の getAddress で EIP-55 チェックサム対応アドレスに自動変換
-const validContractAddress = getAddress("0xD6b986CFeEb0861113c233e5Eb17b62e4D7550FD");
+// アドレスをすべて小文字に統一してチェックサム検証エラーを完全に回避
+const CONTRACT_ADDRESS = "0xd6b986cfeeb0861113c233e5eb17b62e4d7550fd";
 
 const contract = getContract({
   client,
   chain: polygon,
-  address: validContractAddress,
+  address: CONTRACT_ADDRESS,
 });
 
 app.post("/api/claim", async (req, res) => {
@@ -37,8 +36,6 @@ app.post("/api/claim", async (req, res) => {
   }
 
   try {
-    const validUserAddress = getAddress(address.trim());
-
     const adminAccount = privateKeyToAccount({
       client,
       privateKey: process.env.ADMIN_PRIVATE_KEY,
@@ -46,7 +43,7 @@ app.post("/api/claim", async (req, res) => {
 
     const transaction = mintTo({
       contract,
-      to: validUserAddress,
+      to: address.trim().toLowerCase(),
       tokenId: 0n,
       quantity: 1n,
     });
