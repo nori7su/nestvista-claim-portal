@@ -19,7 +19,7 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-// コントラクトアドレスを直接文字列として固定指定
+// コントラクトアドレスを直接文字列で定義（環境変数のエラーを防止）
 const contract = getContract({
   client,
   chain: polygon,
