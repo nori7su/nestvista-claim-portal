@@ -40,15 +40,16 @@ app.post("/api/claim", async (req, res) => {
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
-    // mintTo トランザクションの作成
+    // NFT (Token ID 0) のミント処理
     const transaction = mintTo({
       contract,
       to: address.trim().toLowerCase(),
-      tokenId: 0n,
-      quantity: 1n,
+      nft: {
+        tokenId: 0n,
+      },
+      supply: 1n,
     });
 
-    // thirdweb v5 の正解送信メソッド sendTransaction を実行
     const receipt = await sendTransaction({
       transaction,
       account: adminAccount,
