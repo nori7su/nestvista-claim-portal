@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nestvista NFT クレームポータル</title>
+  <style>
+    body { font-family: sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+    input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; background: #3b82f6; color: #fff; font-weight: bold; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    #status { margin-top: 15px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Nestvista NFT 受取</h1>
+    <p style="font-size: 0.85rem; color: #94a3b8;">ウォレットアドレスと合言葉を入力してください</p>
+    
+    <input type="text" id="address" placeholder="ウォレットアドレス (0x...)" />
+    <input type="password" id="passcode" placeholder="合言葉を入力" />
+    <button onclick="claimNFT()">NFTを受け取る</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    async function claimNFT() {
+      const address = document.getElementById("address").value.trim();
+      const passcode = document.getElementById("passcode").value.trim();
+      const statusDiv = document.getElementById("status");
+
+      if (!address || !passcode) {
+        statusDiv.style.color = "#ef4444";
+        statusDiv.innerText = "アドレスと合言葉を入力してください。";
+        return;
+      }
+
+      statusDiv.style.color = "#3b82f6";
+      statusDiv.innerText = "処理中...";
+
+      try {
+        const res = await fetch("/api/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, passcode })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          statusDiv.style.color = "#22c55e";
+          statusDiv.innerText = data.message;
+        } else {
+          statusDiv.style.color = "#ef4444";
+          statusDiv.innerText = data.message;
+        }
+      } catch (err) {
+        statusDiv.style.color = "#ef4444";
+        statusDiv.innerText = "通信エラーが発生しました。";
+      }
+    }
+  </script>
+</body>
+</html>
