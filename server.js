@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { claimTo, mintTo } from "thirdweb/extensions/erc1155";
+import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,25 +42,13 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    let transaction;
-    
-    // まず claimTo を試し、失敗した場合は mintTo を使用
-    try {
-      transaction = claimTo({
-        contract,
-        to: targetAddress,
-        tokenId: 0n,
-        quantity: 1n,
-      });
-    } catch (e) {
-      transaction = mintTo({
-        contract,
-        to: targetAddress,
-        nft: {
-          supply: 1n,
-        },
-      });
-    }
+    // クレーム条件（Claim Condition）を経由せず、管理者権限で Token ID 0 を直接ミント
+    const transaction = mintTo({
+      contract,
+      to: targetAddress,
+      tokenId: 0n,
+      supply: 1n,
+    });
 
     const receipt = await sendAndConfirmTransaction({
       transaction,
