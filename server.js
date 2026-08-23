@@ -41,22 +41,50 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // コントラクト標準の mintTo(address,uint256,string,uint256) を型指定して安全に実行
+    // 0x0000000000000000000000000000000000000000 (NATIVE TOKEN)
+    const NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
+
+    // Edition Drop / DropERC1155 の標準 claim 関数を直接実行
     const transaction = prepareContractCall({
       contract,
       method: {
-        name: "mintTo",
+        name: "claim",
         type: "function",
         inputs: [
-          { name: "_to", type: "address" },
+          { name: "_receiver", type: "address" },
           { name: "_tokenId", type: "uint256" },
-          { name: "_uri", type: "string" },
-          { name: "_amount", type: "uint256" },
+          { name: "_quantity", type: "uint256" },
+          { name: "_currency", type: "address" },
+          { name: "_pricePerToken", type: "uint256" },
+          {
+            name: "_allowlistProof",
+            type: "tuple",
+            components: [
+              { name: "proof", type: "bytes32[]" },
+              { name: "quantityLimitPerWallet", type: "uint256" },
+              { name: "pricePerToken", type: "uint256" },
+              { name: "currency", type: "address" },
+            ],
+          },
+          { name: "_data", type: "bytes" },
         ],
         outputs: [],
-        stateMutability: "nonpayable",
+        stateMutability: "payable",
       },
-      params: [targetAddress, 0n, "", 1n],
+      params: [
+        targetAddress,
+        0n, // Token ID
+        1n, // Quantity
+        NATIVE_TOKEN,
+        0n, // Price per token
+        {
+          proof: [],
+          quantityLimitPerWallet: 0n,
+          pricePerToken: 0n,
+          currency: NATIVE_TOKEN,
+        },
+        "0x",
+      ],
     });
 
     const receipt = await sendTransaction({
