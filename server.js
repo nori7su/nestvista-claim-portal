@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createThirdwebClient, getContract, prepareContractCall, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,20 +41,21 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // v5 ERC1155 mintTo の型定義に厳密に合わせたパラメータ設定
+    // コントラクトの関数の呼び出し（ABIを直接指定してフォールバックへの流出を防止）
     let transaction;
+
     try {
-      transaction = mintTo({
-        contract,
-        to: targetAddress,
-        tokenId: 0n,
-        supply: 1n,
-      });
-    } catch (e) {
-      // フォールバック: prepareContractCall による直接呼び出し
+      // 1. Thirdweb Edition / Edition Drop の標準 claim 関数
       transaction = prepareContractCall({
         contract,
-        method: "function mintTo(address _to, uint256 _tokenId, string _uri, uint256 _amount)",
+        method: "function claim(address _receiver, uint256 _tokenId, uint256 _quantity)",
+        params: [targetAddress, 0n, 1n],
+      });
+    } catch (e) {
+      // 2. カスタム Mint 関数のフォールバック
+      transaction = prepareContractCall({
+        contract,
+        method: "function mintTo(address to, uint256 tokenId, string uri, uint256 amount)",
         params: [targetAddress, 0n, "", 1n],
       });
     }
