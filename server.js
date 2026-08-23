@@ -42,12 +42,14 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // 管理者権限で Token ID 0 を直接ミント
+    // ERC1155 の mintTo を明示的にトランザクション生成
     const transaction = mintTo({
       contract,
       to: targetAddress,
+      nft: {
+        supply: 1n,
+      },
       tokenId: 0n,
-      supply: 1n,
     });
 
     const receipt = await sendAndConfirmTransaction({
@@ -55,7 +57,6 @@ app.post("/api/claim", async (req, res) => {
       account: adminAccount,
     });
 
-    // BigInt のシリアライズエラーを回避するため receipt.transactionHash のみを返却
     return res.json({ 
       success: true, 
       message: "NFTの受け取りが完了しました！", 
