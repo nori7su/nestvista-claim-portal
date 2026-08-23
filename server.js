@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
+import { createThirdwebClient, getContract, prepareContractCall, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
@@ -42,15 +42,23 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // ERC1155 の mintTo を明示的にトランザクション生成
-    const transaction = mintTo({
-      contract,
-      to: targetAddress,
-      nft: {
+    // v5 ERC1155 mintTo の型定義に厳密に合わせたパラメータ設定
+    let transaction;
+    try {
+      transaction = mintTo({
+        contract,
+        to: targetAddress,
+        tokenId: 0n,
         supply: 1n,
-      },
-      tokenId: 0n,
-    });
+      });
+    } catch (e) {
+      // フォールバック: prepareContractCall による直接呼び出し
+      transaction = prepareContractCall({
+        contract,
+        method: "function mintTo(address _to, uint256 _tokenId, string _uri, uint256 _amount)",
+        params: [targetAddress, 0n, "", 1n],
+      });
+    }
 
     const receipt = await sendAndConfirmTransaction({
       transaction,
