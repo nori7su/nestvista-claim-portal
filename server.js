@@ -42,7 +42,7 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // クレーム条件（Claim Condition）を経由せず、管理者権限で Token ID 0 を直接ミント
+    // 管理者権限で Token ID 0 を直接ミント
     const transaction = mintTo({
       contract,
       to: targetAddress,
@@ -55,7 +55,12 @@ app.post("/api/claim", async (req, res) => {
       account: adminAccount,
     });
 
-    return res.json({ success: true, message: "NFTの受け取りが完了しました！", receipt });
+    // BigInt のシリアライズエラーを回避するため receipt.transactionHash のみを返却
+    return res.json({ 
+      success: true, 
+      message: "NFTの受け取りが完了しました！", 
+      transactionHash: receipt.transactionHash 
+    });
   } catch (error) {
     console.error("Mint Detailed Error:", error);
     return res.status(500).json({ 
