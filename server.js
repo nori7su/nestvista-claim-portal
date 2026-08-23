@@ -40,15 +40,13 @@ app.post("/api/claim", async (req, res) => {
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
-    const targetAddress = address.trim();
+    const receiverAddress = address.trim();
 
-    // 指定アドレス（ユーザーウォレット）宛てに Token ID 0 をミント
+    // thirdweb v5 の erc1155.mintTo 正しい書き方
     const transaction = mintTo({
       contract,
-      to: targetAddress,
-      nft: {
-        tokenId: 0n,
-      },
+      to: receiverAddress,
+      nft: 0n, // 既存の Token ID 0 を指定
       supply: 1n,
     });
 
