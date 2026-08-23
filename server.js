@@ -41,10 +41,21 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // ERC-1155のmintTo関数を直接呼び出す（確実なミント処理）
+    // コントラクト標準の mintTo(address,uint256,string,uint256) を型指定して安全に実行
     const transaction = prepareContractCall({
       contract,
-      method: "function mintTo(address _to, uint256 _tokenId, string _uri, uint256 _amount)",
+      method: {
+        name: "mintTo",
+        type: "function",
+        inputs: [
+          { name: "_to", type: "address" },
+          { name: "_tokenId", type: "uint256" },
+          { name: "_uri", type: "string" },
+          { name: "_amount", type: "uint256" },
+        ],
+        outputs: [],
+        stateMutability: "nonpayable",
+      },
       params: [targetAddress, 0n, "", 1n],
     });
 
