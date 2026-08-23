@@ -40,11 +40,15 @@ app.post("/api/claim", async (req, res) => {
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
-    // 既存のToken ID 0に対してミントを実行（新規ストレージアップロードを回避）
+    const targetAddress = address.trim();
+
+    // 指定アドレス（ユーザーウォレット）宛てに Token ID 0 をミント
     const transaction = mintTo({
       contract,
-      to: address.trim().toLowerCase(),
-      tokenId: 0n,
+      to: targetAddress,
+      nft: {
+        tokenId: 0n,
+      },
       supply: 1n,
     });
 
