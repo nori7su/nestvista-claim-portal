@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract, prepareContractCall, sendTransaction } from "thirdweb";
+import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
+import { claimTo, mintTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,61 +42,39 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // 0x0000000000000000000000000000000000000000 (NATIVE TOKEN)
-    const NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
-
-    // Edition Drop / DropERC1155 の標準 claim 関数を直接実行
-    const transaction = prepareContractCall({
-      contract,
-      method: {
-        name: "claim",
-        type: "function",
-        inputs: [
-          { name: "_receiver", type: "address" },
-          { name: "_tokenId", type: "uint256" },
-          { name: "_quantity", type: "uint256" },
-          { name: "_currency", type: "address" },
-          { name: "_pricePerToken", type: "uint256" },
-          {
-            name: "_allowlistProof",
-            type: "tuple",
-            components: [
-              { name: "proof", type: "bytes32[]" },
-              { name: "quantityLimitPerWallet", type: "uint256" },
-              { name: "pricePerToken", type: "uint256" },
-              { name: "currency", type: "address" },
-            ],
-          },
-          { name: "_data", type: "bytes" },
-        ],
-        outputs: [],
-        stateMutability: "payable",
-      },
-      params: [
-        targetAddress,
-        0n, // Token ID
-        1n, // Quantity
-        NATIVE_TOKEN,
-        0n, // Price per token
-        {
-          proof: [],
-          quantityLimitPerWallet: 0n,
-          pricePerToken: 0n,
-          currency: NATIVE_TOKEN,
+    let transaction;
+    
+    // まず claimTo を試し、失敗した場合は mintTo を使用
+    try {
+      transaction = claimTo({
+        contract,
+        to: targetAddress,
+        tokenId: 0n,
+        quantity: 1n,
+      });
+    } catch (e) {
+      transaction = mintTo({
+        contract,
+        to: targetAddress,
+        nft: {
+          supply: 1n,
         },
-        "0x",
-      ],
-    });
+      });
+    }
 
-    const receipt = await sendTransaction({
+    const receipt = await sendAndConfirmTransaction({
       transaction,
       account: adminAccount,
     });
 
     return res.json({ success: true, message: "NFTの受け取りが完了しました！", receipt });
   } catch (error) {
-    console.error("Mint Error:", error);
-    return res.status(500).json({ success: false, message: "ミント処理に失敗しました。" });
+    console.error("Mint Detailed Error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "ミント処理に失敗しました。", 
+      errorDetail: error.message || String(error)
+    });
   }
 });
 
