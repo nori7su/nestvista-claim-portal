@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { claimTo } from "thirdweb/extensions/erc1155";
+import { claimTo, balanceOf } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,12 +19,36 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-const CONTRACT_ADDRESS = "0xd6b9e57cf1e9052976b9f56d0b9cc677a0fd50fd";
+const CONTRACT_ADDRESS = "0xd6b986cfeeb0861113c233e5eb17b62e4d7550fd";
 
 const contract = getContract({
   client,
   chain: polygon,
   address: CONTRACT_ADDRESS,
+});
+
+// 受け取り済みかどうかを事前チェックするAPI
+app.get("/api/check-status", async (req, res) => {
+  const { address } = req.query;
+
+  if (!address || typeof address !== "string") {
+    return res.status(400).json({ claimed: false, message: "アドレスが指定されていません。" });
+  }
+
+  try {
+    const targetAddress = address.trim();
+    const balance = await balanceOf({
+      contract,
+      owner: targetAddress,
+      tokenId: 0n,
+    });
+
+    const claimed = balance > 0n;
+    return res.json({ claimed, balance: balance.toString() });
+  } catch (error) {
+    console.error("Check Status Error:", error);
+    return res.status(500).json({ claimed: false, message: "状態の確認に失敗しました。" });
+  }
 });
 
 app.post("/api/claim", async (req, res) => {
@@ -35,14 +59,29 @@ app.post("/api/claim", async (req, res) => {
   }
 
   try {
+    const targetAddress = address.trim();
+
+    // 重複ミント防止：すでに1枚以上所有しているかオンチェーンで確認
+    const balance = await balanceOf({
+      contract,
+      owner: targetAddress,
+      tokenId: 0n,
+    });
+
+    if (balance > 0n) {
+      return res.status(400).json({
+        success: false,
+        claimed: true,
+        message: "このウォレットアドレスはすでにNFTを受け取り済みです。",
+      });
+    }
+
     const adminAccount = privateKeyToAccount({
       client,
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
-    const targetAddress = address.trim();
-
-    // Edition Drop コントラクト専用の claimTo トランザクション生成
+    // claimTo トランザクション生成
     const transaction = claimTo({
       contract,
       to: targetAddress,
