@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract, prepareContractCall, sendAndConfirmTransaction } from "thirdweb";
+import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
 import { polygon } from "thirdweb/chains";
+import { claimTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +19,7 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-const CONTRACT_ADDRESS = "0xd6b986cfeeb0861113c233e5eb17b62e4d7550fd";
+const CONTRACT_ADDRESS = "0xd6b9e57cf1e9052976b9f56d0b9cc677a0fd50fd";
 
 const contract = getContract({
   client,
@@ -41,24 +42,13 @@ app.post("/api/claim", async (req, res) => {
 
     const targetAddress = address.trim();
 
-    // コントラクトの関数の呼び出し（ABIを直接指定してフォールバックへの流出を防止）
-    let transaction;
-
-    try {
-      // 1. Thirdweb Edition / Edition Drop の標準 claim 関数
-      transaction = prepareContractCall({
-        contract,
-        method: "function claim(address _receiver, uint256 _tokenId, uint256 _quantity)",
-        params: [targetAddress, 0n, 1n],
-      });
-    } catch (e) {
-      // 2. カスタム Mint 関数のフォールバック
-      transaction = prepareContractCall({
-        contract,
-        method: "function mintTo(address to, uint256 tokenId, string uri, uint256 amount)",
-        params: [targetAddress, 0n, "", 1n],
-      });
-    }
+    // Edition Drop コントラクト専用の claimTo トランザクション生成
+    const transaction = claimTo({
+      contract,
+      to: targetAddress,
+      tokenId: 0n,
+      quantity: 1n,
+    });
 
     const receipt = await sendAndConfirmTransaction({
       transaction,
@@ -71,7 +61,7 @@ app.post("/api/claim", async (req, res) => {
       transactionHash: receipt.transactionHash 
     });
   } catch (error) {
-    console.error("Mint Detailed Error:", error);
+    console.error("Claim Detailed Error:", error);
     return res.status(500).json({ 
       success: false, 
       message: "ミント処理に失敗しました。", 
