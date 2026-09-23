@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract, sendAndConfirmTransaction } from "thirdweb";
+import { createThirdwebClient, getContract, sendAndConfirmTransaction, readContract } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { claimTo, balanceOf } from "thirdweb/extensions/erc1155";
+import { claimTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +27,21 @@ const contract = getContract({
   address: CONTRACT_ADDRESS,
 });
 
+// 安全にERC-1155の保有数を取得する共通関数
+async function getUserBalance(targetAddress) {
+  try {
+    const balance = await readContract({
+      contract,
+      method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+      params: [targetAddress, 0n],
+    });
+    return BigInt(balance);
+  } catch (e) {
+    console.error("balanceOf read error:", e);
+    return 0n;
+  }
+}
+
 // 受け取り済みかどうかを事前チェックするAPI
 app.get("/api/check-status", async (req, res) => {
   const { address } = req.query;
@@ -37,11 +52,7 @@ app.get("/api/check-status", async (req, res) => {
 
   try {
     const targetAddress = address.trim();
-    const balance = await balanceOf({
-      contract,
-      owner: targetAddress,
-      tokenId: 0n,
-    });
+    const balance = await getUserBalance(targetAddress);
 
     const claimed = balance > 0n;
     return res.json({ claimed, balance: balance.toString() });
@@ -61,12 +72,8 @@ app.post("/api/claim", async (req, res) => {
   try {
     const targetAddress = address.trim();
 
-    // 重複ミント防止：すでに1枚以上所有しているかオンチェーンで確認
-    const balance = await balanceOf({
-      contract,
-      owner: targetAddress,
-      tokenId: 0n,
-    });
+    // 重複ミント防止：保有数をオンチェーン確認
+    const balance = await getUserBalance(targetAddress);
 
     if (balance > 0n) {
       return res.status(400).json({
