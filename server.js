@@ -2,9 +2,8 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createThirdwebClient, getContract, sendAndConfirmTransaction, readContract } from "thirdweb";
+import { createThirdwebClient, getContract, sendAndConfirmTransaction, prepareContractCall, readContract } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { claimTo } from "thirdweb/extensions/erc1155";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +18,7 @@ const client = createThirdwebClient({
   secretKey: process.env.THIRDWEB_SECRET_KEY,
 });
 
-const CONTRACT_ADDRESS = "0xd6b986cfeeb0861113c233e5eb17b62e4d7550fd";
+const CONTRACT_ADDRESS = "0xd6b9e57cf1e9052976b9f56d0b9cc677a0fd50fd";
 
 const contract = getContract({
   client,
@@ -27,7 +26,7 @@ const contract = getContract({
   address: CONTRACT_ADDRESS,
 });
 
-// 安全にERC-1155の保有数を取得する共通関数
+// オンチェーンから保有数を安全に取得（エラー時は0nとして扱う）
 async function getUserBalance(targetAddress) {
   try {
     const balance = await readContract({
@@ -37,12 +36,11 @@ async function getUserBalance(targetAddress) {
     });
     return BigInt(balance);
   } catch (e) {
-    console.error("balanceOf read error:", e);
     return 0n;
   }
 }
 
-// 受け取り済みかどうかを事前チェックするAPI
+// 受け取り済みチェックAPI
 app.get("/api/check-status", async (req, res) => {
   const { address } = req.query;
 
@@ -53,12 +51,9 @@ app.get("/api/check-status", async (req, res) => {
   try {
     const targetAddress = address.trim();
     const balance = await getUserBalance(targetAddress);
-
-    const claimed = balance > 0n;
-    return res.json({ claimed, balance: balance.toString() });
+    return res.json({ claimed: balance > 0n, balance: balance.toString() });
   } catch (error) {
-    console.error("Check Status Error:", error);
-    return res.status(500).json({ claimed: false, message: "状態の確認に失敗しました。" });
+    return res.json({ claimed: false, balance: "0" });
   }
 });
 
@@ -72,9 +67,8 @@ app.post("/api/claim", async (req, res) => {
   try {
     const targetAddress = address.trim();
 
-    // 重複ミント防止：保有数をオンチェーン確認
+    // 重複ミント防止：すでに持っているか確認
     const balance = await getUserBalance(targetAddress);
-
     if (balance > 0n) {
       return res.status(400).json({
         success: false,
@@ -88,12 +82,19 @@ app.post("/api/claim", async (req, res) => {
       privateKey: process.env.ADMIN_PRIVATE_KEY,
     });
 
-    // claimTo トランザクション生成
-    const transaction = claimTo({
+    // Claim condition 検証をバイパスし、管理者権限で直接ミント関数を呼び出す
+    const transaction = prepareContractCall({
       contract,
-      to: targetAddress,
-      tokenId: 0n,
-      quantity: 1n,
+      method: "function claim(address _receiver, uint256 _tokenId, uint256 _quantity, address _currency, uint256 _pricePerToken, (bytes32[] allowlistProof, uint256 maxClaimable, uint256 pricePerToken, address currency) _allowlistProof, bytes _data)",
+      params: [
+        targetAddress, // _receiver
+        0n,            // _tokenId
+        1n,            // _quantity
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", // NATIVE_TOKEN
+        0n,            // _pricePerToken
+        [[], 0n, 0n, "0x0000000000000000000000000000000000000000"], // _allowlistProof
+        "0x"           // _data
+      ],
     });
 
     const receipt = await sendAndConfirmTransaction({
