@@ -187,19 +187,19 @@
 
     googleBtn.addEventListener("click", async () => {
       try {
-        messageDiv.textContent = "Googleログインの応答を待機中...";
+        messageDiv.textContent = "Googleログインの処理中...";
         messageDiv.className = "message info";
         googleBtn.disabled = true;
 
         const wallet = inAppWallet();
 
-        // ログイン接続を実行
+        // ログインモーダル/認証を実行
         const account = await wallet.connect({
           client,
           strategy: "google",
+          mode: "popup"
         });
 
-        // 成功時のアドレス割り当て
         if (account && account.address) {
           const userAddress = account.address;
           addressInput.value = userAddress;
@@ -211,10 +211,10 @@
           
           checkStatus(userAddress);
         } else {
-          throw new Error("No address returned");
+          throw new Error("ウォレットアドレスが取得できませんでした。");
         }
       } catch (err) {
-        console.error("Google Login Error:", err);
+        console.dir(err);
         messageDiv.textContent = "Googleログインに失敗またはキャンセルされました。";
         messageDiv.className = "message error";
       } finally {
