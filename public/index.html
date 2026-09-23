@@ -185,36 +185,48 @@
     const detectedAddress = document.getElementById("detectedAddress");
     const googleBtn = document.getElementById("googleBtn");
 
+    const wallet = inAppWallet();
+
+    // ページ読み込み時にセッションが残っているか自動チェック
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const account = await wallet.autoConnect({ client });
+        if (account && account.address) {
+          setLoggedInUser(account.address);
+        }
+      } catch (e) {
+        // 未ログイン状態
+      }
+    });
+
+    function setLoggedInUser(userAddress) {
+      addressInput.value = userAddress;
+      detectedAddress.textContent = userAddress;
+      userInfoBox.style.display = "block";
+      messageDiv.textContent = "ログイン中です。合言葉を入力して「NFTを受け取る」を押してください。";
+      messageDiv.className = "message success";
+      checkStatus(userAddress);
+    }
+
     googleBtn.addEventListener("click", async () => {
       try {
         messageDiv.textContent = "Googleログインの処理中...";
         messageDiv.className = "message info";
         googleBtn.disabled = true;
 
-        const wallet = inAppWallet();
-
-        // ログインモーダル/認証を実行
+        // ポップアップブロッカー回避のため直呼び出し
         const account = await wallet.connect({
           client,
-          strategy: "google",
-          mode: "popup"
+          strategy: "google"
         });
 
         if (account && account.address) {
-          const userAddress = account.address;
-          addressInput.value = userAddress;
-          detectedAddress.textContent = userAddress;
-          userInfoBox.style.display = "block";
-
-          messageDiv.textContent = "ログインに成功しました！合言葉を入力して「NFTを受け取る」を押してください。";
-          messageDiv.className = "message success";
-          
-          checkStatus(userAddress);
+          setLoggedInUser(account.address);
         } else {
-          throw new Error("ウォレットアドレスが取得できませんでした。");
+          throw new Error("Address empty");
         }
       } catch (err) {
-        console.dir(err);
+        console.error("Login Error:", err);
         messageDiv.textContent = "Googleログインに失敗またはキャンセルされました。";
         messageDiv.className = "message error";
       } finally {
