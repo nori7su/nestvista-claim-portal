@@ -171,7 +171,6 @@
     <div id="message" class="message"></div>
   </div>
 
-  <!-- thirdweb JS (単一安定バンドル) -->
   <script type="module">
     import { createThirdwebClient } from "https://esm.sh/thirdweb@5.50.0";
     import { inAppWallet } from "https://esm.sh/thirdweb@5.50.0/wallets";
@@ -186,30 +185,34 @@
     const detectedAddress = document.getElementById("detectedAddress");
     const googleBtn = document.getElementById("googleBtn");
 
-    // Googleログインイベント
     googleBtn.addEventListener("click", async () => {
       try {
-        messageDiv.textContent = "Googleログイン画面を準備中...";
+        messageDiv.textContent = "Googleログインの応答を待機中...";
         messageDiv.className = "message info";
         googleBtn.disabled = true;
 
         const wallet = inAppWallet();
 
-        // ポップアップブロックを防止するための接続設定
+        // ログイン接続を実行
         const account = await wallet.connect({
           client,
           strategy: "google",
         });
 
-        const userAddress = account.address;
-        addressInput.value = userAddress;
-        detectedAddress.textContent = userAddress;
-        userInfoBox.style.display = "block";
+        // 成功時のアドレス割り当て
+        if (account && account.address) {
+          const userAddress = account.address;
+          addressInput.value = userAddress;
+          detectedAddress.textContent = userAddress;
+          userInfoBox.style.display = "block";
 
-        messageDiv.textContent = "ログインに成功しました！合言葉を入力して「NFTを受け取る」を押してください。";
-        messageDiv.className = "message success";
-        
-        checkStatus(userAddress);
+          messageDiv.textContent = "ログインに成功しました！合言葉を入力して「NFTを受け取る」を押してください。";
+          messageDiv.className = "message success";
+          
+          checkStatus(userAddress);
+        } else {
+          throw new Error("No address returned");
+        }
       } catch (err) {
         console.error("Google Login Error:", err);
         messageDiv.textContent = "Googleログインに失敗またはキャンセルされました。";
