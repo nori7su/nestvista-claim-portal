@@ -93,13 +93,6 @@
     .btn-primary:hover {
       background-color: #2563eb;
     }
-    .btn-google {
-      background-color: #ffffff;
-      color: #0f172a;
-    }
-    .btn-google:hover {
-      background-color: #e2e8f0;
-    }
     .btn:disabled {
       background-color: #475569;
       color: #94a3b8;
@@ -133,6 +126,13 @@
     .success { color: #4ade80; }
     .error { color: #f87171; }
     .info { color: #fbbf24; }
+    
+    /* ConnectButtonコンポーネントを全幅にするスタイル */
+    #connectBtnContainer {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
@@ -141,12 +141,9 @@
     <h1>Nestvista NFT 受取</h1>
     <p class="subtitle">Googleログインまたはアドレス入力で受け取る</p>
 
-    <!-- Google ログインボタン -->
-    <div>
-      <button class="btn btn-google" id="googleBtn">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-        Googleアカウントで受け取る
-      </button>
+    <!-- thirdweb公式ログインボタン -->
+    <div id="connectBtnContainer">
+      <thirdweb-connect-button id="connectBtn"></thirdweb-connect-button>
     </div>
 
     <div class="divider"><span>またはアドレスを直接入力</span></div>
@@ -174,28 +171,27 @@
   <script type="module">
     import { createThirdwebClient } from "https://esm.sh/thirdweb@5.50.0";
     import { inAppWallet } from "https://esm.sh/thirdweb@5.50.0/wallets";
+    import "https://esm.sh/thirdweb@5.50.0/components";
 
     const CLIENT_ID = "1f5150af54185093f69170928e4cdb43";
     const client = createThirdwebClient({ clientId: CLIENT_ID });
+    const wallets = [inAppWallet({ auth: { options: ["google"] } })];
 
+    const connectBtn = document.getElementById("connectBtn");
     const addressInput = document.getElementById("address");
     const claimBtn = document.getElementById("claimBtn");
     const messageDiv = document.getElementById("message");
     const userInfoBox = document.getElementById("userInfoBox");
     const detectedAddress = document.getElementById("detectedAddress");
-    const googleBtn = document.getElementById("googleBtn");
 
-    const wallet = inAppWallet();
+    // ボタンの初期化
+    connectBtn.setAttribute("client-id", CLIENT_ID);
 
-    // ページ読み込み時にセッションが残っているか自動チェック
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        const account = await wallet.autoConnect({ client });
-        if (account && account.address) {
-          setLoggedInUser(account.address);
-        }
-      } catch (e) {
-        // 未ログイン状態
+    // ウォレット接続状態の監視
+    connectBtn.addEventListener("connect", (event) => {
+      const activeAccount = event.detail?.account;
+      if (activeAccount && activeAccount.address) {
+        setLoggedInUser(activeAccount.address);
       }
     });
 
@@ -203,36 +199,10 @@
       addressInput.value = userAddress;
       detectedAddress.textContent = userAddress;
       userInfoBox.style.display = "block";
-      messageDiv.textContent = "ログイン中です。合言葉を入力して「NFTを受け取る」を押してください。";
+      messageDiv.textContent = "Googleログイン完了！合言葉を入力して「NFTを受け取る」を押してください。";
       messageDiv.className = "message success";
       checkStatus(userAddress);
     }
-
-    googleBtn.addEventListener("click", async () => {
-      try {
-        messageDiv.textContent = "Googleログインの処理中...";
-        messageDiv.className = "message info";
-        googleBtn.disabled = true;
-
-        // ポップアップブロッカー回避のため直呼び出し
-        const account = await wallet.connect({
-          client,
-          strategy: "google"
-        });
-
-        if (account && account.address) {
-          setLoggedInUser(account.address);
-        } else {
-          throw new Error("Address empty");
-        }
-      } catch (err) {
-        console.error("Login Error:", err);
-        messageDiv.textContent = "Googleログインに失敗またはキャンセルされました。";
-        messageDiv.className = "message error";
-      } finally {
-        googleBtn.disabled = false;
-      }
-    });
 
     async function checkStatus(address) {
       if (address.length === 42 && address.startsWith("0x")) {
