@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nestvista NFT 受取ポータル</title>
-  <!-- thirdweb SDK v5 (ブラウザ用) -->
-  <script src="https://umd.thirdweb.com/v5/thirdweb.js" crossorigin="anonymous"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -173,7 +171,11 @@
     <div id="message" class="message"></div>
   </div>
 
-  <script>
+  <!-- thirdweb ESM スクリプト読み込み -->
+  <script type="module">
+    import { createThirdwebClient } from "https://esm.sh/thirdweb@5.50.0";
+    import { inAppWallet } from "https://esm.sh/thirdweb@5.50.0/wallets";
+
     const addressInput = document.getElementById("address");
     const claimBtn = document.getElementById("claimBtn");
     const messageDiv = document.getElementById("message");
@@ -182,18 +184,18 @@
     const googleBtn = document.getElementById("googleBtn");
 
     const CLIENT_ID = "1f5150af54185093f69170928e4cdb43";
+    const client = createThirdwebClient({ clientId: CLIENT_ID });
 
-    // Googleログイン処理
-    async function loginWithGoogle() {
+    // Googleログイン処理をグローバル関数に割り当て
+    window.loginWithGoogle = async function() {
       try {
         messageDiv.textContent = "Googleログイン画面を呼び出し中...";
         messageDiv.className = "message info";
         googleBtn.disabled = true;
 
-        const client = thirdweb.createThirdwebClient({ clientId: CLIENT_ID });
-        const wallet = thirdweb.inAppWallet();
+        const wallet = inAppWallet();
         
-        // Googleログイン実行
+        // Google認証を実行してアカウント接続
         const account = await wallet.connect({
           client,
           strategy: "google",
@@ -218,7 +220,7 @@
       } finally {
         googleBtn.disabled = false;
       }
-    }
+    };
 
     async function checkStatus(address) {
       if (address.length === 42 && address.startsWith("0x")) {
@@ -249,7 +251,7 @@
       checkStatus(addressInput.value.trim());
     });
 
-    async function handleClaim() {
+    window.handleClaim = async function() {
       const address = addressInput.value.trim();
       const passcode = document.getElementById("passcode").value;
 
@@ -290,7 +292,7 @@
         claimBtn.disabled = false;
         claimBtn.textContent = "NFTを受け取る";
       }
-    }
+    };
   </script>
 </body>
 </html>
